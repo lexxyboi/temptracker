@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tempo | Home</title>
+
+    <!-- ref Monsterrat font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+
+    <!-- Firestore & Chart Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- bundle js -->
+    <script defer src="./bundle.js"></script>
+
+    <style>
+        * {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, white 50%, #f0f2f5 50%);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dashboard {
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            width: 100%;
+            background: #006affad;
+            color: white;
+            font-family: Arial, sans-serif;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+
+        .logo {
+            position: absolute;
+            width: 0px;
+            height: 0px;
+            background: url(tempoicon.png) no-repeat;
+            background-size: contain;
+            flex-shrink: 0;
+            margin-right: 10px;
+        }
+
+        .website-name {
+            font-size: 24px;
+            margin-left: 2%;
+        }
+
+        .dashboard-content {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .signoutbtn {
+            position: absolute;
+            right: 0;
+            margin-right: 2%;
+            border-radius: 100px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            width: 1000px;
+            height: 800px;
+            margin-top: 6%;
+            margin-bottom: 1%;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .headertemp {
+            color: #494949;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- dashboard html -->
+    <div class="dashboard">
+        <div class="logo"></div>
+        <div class="dashboard-content">
+            <h1 class="website-name">Tempo</h1>
+            <button class="signoutbtn">Sign Out</button>
+        </div>
+    </div>
+    <!-- card html (for data visualization)-->
+    <div class="card">
+        <h1 class="headertemp">Current Temperature:</h1>
+        <canvas id="lineChart"></canvas>
+    </div>
+
+    <script type = "module">
+
+        // Import the functions you need from the SDKs you need
+           import { initializeApp } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-app.js";
+           import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-analytics.js";
+           import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-auth.js";
+           import { getFirestore, collection, addDoc, query, getDocs, getDoc,updateDoc, setDoc, doc, onSnapshot, deleteDoc, orderBy } from 'https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore.js';
+       
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDnAKRdk15rCOaiyK1S8m00YRHckpe8TU",
+            authDomain: "cputemptracker.firebaseapp.com",
+            projectId: "cputemptracker",
+            storageBucket: "cputemptracker.appspot.com",
+            messagingSenderId: "751453239310",
+            appId: "1:751453239310:web:1d2665a64bd547c6c7245f",
+            measurementId: "G-2WD18M3EHZ"
+    };
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    console.log(app)
+
+    //Firestore
+    const db = getFirestore();
+
+    //finitialize the firebase firestore with another variable and format to avoid conflict with the other variable
+    const db2 = firebase.firestore();
+
+    // Retrieve data from Firestore (collection ="temp" with its doc.id ="El6qx4IQIVWewTLPCDV8")
+    const docRef = db2.collection("temp").doc("El6qx4IQIVWewTLPCDV8");
+
+    // Initialize chart variables
+    let chart; //this variable will store the data, and remove if it exceeds to 6 updates, the last update will be removed.
+    let lastTemperature; // this variable will store the latest temperature update, and print to the chart
+
+    // Function to create or update the chart
+    function createOrUpdateChart(temperatureData) {
+    // Get the canvas element
+    const chartCanvas = document.getElementById("lineChart").getContext("2d");
+
+    // Update or create the chart
+    if (chart) {
+      // Update existing chart
+      chart.data.datasets[0].data.push(temperatureData);
+      if (chart.data.datasets[0].data.length > 6) {
+      chart.data.datasets[0].data.shift(); // Remove oldest data point if more than 6 points
+      }
+  
+      // Change point color based on temperature, red if not normal temperature if it exceeds to 60
+      chart.data.datasets[0].pointBackgroundColor = temperatureData < 5 || temperatureData >= 60 ? 'red' : 'rgba(75, 192, 192, 1)';
+      chart.data.datasets[0].pointBorderColor = temperatureData < 5 || temperatureData >= 60 ? 'red' : 'rgba(75, 192, 192, 1)';
+      chart.data.datasets[0].borderColor = temperatureData < 5 || temperatureData >= 60 ? 'red' : 'rgba(75, 192, 192, 1)';
+
+      chart.update();
+    } else {
+      // Create new chart
+      chart = new Chart(chartCanvas, {
+        type: "line",
+        data: {
+          labels: ["10s", "20s", "30s", "40s", "50s", "60s"], //six updates, remove the oldest data
+          datasets: [
+            {
+              label: "Temperature",
+              data: [temperatureData], // Initialize with the first temperature data point
+              fill: false,
+              
+              //line styles color, red if exceeds to 60
+              borderColor: temperatureData < 5 || temperatureData >= 60 ? 'red' : 'rgba(75, 192, 192, 1)',
+              pointBackgroundColor: temperatureData < 5 || temperatureData >= 60 ? 'red' : 'rgba(75, 192, 192, 1)',
+              pointBorderColor: temperatureData < 5 || temperatureData >= 60 ? 'red' : 'rgba(75, 192, 192, 1)',
+
+              pointRadius: 7, // Increase the point radius
+            },
+          ],
+        },
+        options: {
+          animations: { //this is where the code for animations, katung labyog2 sa line.
+            tension: {
+              duration: 1000,
+              easing: 'linear',
+              from: 1.3,
+              to: 0,
+              loop: true,
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+  }
+  
+
+// Function to handle Firestore data changes
+function handleFirestoreDataChange(snapshot) {
+  if (snapshot.exists) {
+    const cpuData = snapshot.data();
+    const temperatureData = cpuData.temperature;
+
+    if (temperatureData !== lastTemperature) {
+      lastTemperature = temperatureData;
+      createOrUpdateChart(temperatureData);
+    }
+  }
+}
+
+// Subscribe to Firestore data changes
+//mao ni pampa-Live sa chart, no need na mag refresh2
+docRef.onSnapshot(handleFirestoreDataChange);
+
+</script>
+</body>
+
+</html>
