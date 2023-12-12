@@ -1,2 +1,3 @@
-This is a temperature tracker powered by arduino. A simple school projct
+This is a temperature tracker powered by arduino. A simple school project.
+
 
